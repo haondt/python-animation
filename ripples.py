@@ -16,8 +16,8 @@ def draw_rect():
 canvas.pack()
 
 y = int(canvas_height /2)
-canvas.create_line(0,y,canvas_width,y,fill="#476042")
-myRect = canvas.create_rectangle(0,0,10,10,fill="#FFFFFF")
+#canvas.create_line(0,y,canvas_width,y,fill="#476042")
+#myRect = canvas.create_rectangle(0,0,10,10,fill="#FFFFFF")
 
 rects = []
 rect_spacing = 0
@@ -96,12 +96,6 @@ def frame_step():
 	
 		
 	scale_rects(rects, rect_sizes)
-	#canvas.move(myRect, direction, 0)
-	canvas.coords(myRect, 0,0,rectPos,10)
-	canvas.update()
-	rectPos += direction
-	if rectPos >= canvas_width - 10 or rectPos <= 0:
-		direction *= -1
 	canvas.after(1000//target_fps, frame_step)
 
 frame_step()
