@@ -1,109 +1,275 @@
-from tkinter import *
-
-window = Tk()
-
-target_fps = 30
-canvas_width = 500
-canvas_height = 500
-
-canvas = Canvas(window, width=canvas_width, height=canvas_height)
-
-def draw_rect():
-	canvas.create_rectangle(0,0,10,10, fill="#FFFFFF")
-	
+import pygame, math, random, time
+from pygame.locals import *
 
 
-canvas.pack()
+class App:
+	def __init__(self):
+		pygame.init()
+		self.size = self.width, self.height = 1000, 1000
+		self.screen = pygame.display.set_mode([self.width, self.height])
+		self.running = False
+		self.colors = ((157,205,155),(0,0,48),(99,154,170))
+		self.angle = 0.5
 
-y = int(canvas_height /2)
-#canvas.create_line(0,y,canvas_width,y,fill="#476042")
-#myRect = canvas.create_rectangle(0,0,10,10,fill="#FFFFFF")
+		self.rectColor = (0, 0, 255)
+		self.numRects = 15
+		self.rectMinHeight = 200
+		self.rectWidth = ((self.width - 200) // self.numRects)
+		self.rectMaxHeight = self.height-100-self.numRects*self.angle*self.rectWidth
+		self.x = 0
+		self.old_time = time.time()
+		self.rects = [[0 for i in range(self.numRects)] for j in range(self.numRects)]
+		self.locationMap = self.makeLocationMap()
+		self.Rects = self.initRects()
+		self.drawOrder = []
+		for row in self.makeIndexMap():
+			for col in row:
+				self.drawOrder.append(col)
 
-rects = []
-rect_spacing = 0
-rect_width = 25
-rect_height = 200
-num_rects = (canvas_width-100) // (rect_spacing+rect_width)
-if num_rects % 2 == 0: num_rects -= 1
+	def initRects(self):
+		return [[Rect(self.locationMap[i][j],
+			self.rectWidth,
+			self.colors,
+			self.rectMinHeight,
+			self.rectMaxHeight,
+			self.angle,
+			(self.get1DScaleVale(i,self.numRects)+self.get1DScaleVale(j,self.numRects))/2)
+			for j in range(self.numRects)]
+			for i in range(self.numRects)]
 
-vert_center = canvas_height // 2
-hori_center = canvas_width//2
-for i in range(num_rects):
-	
-	x = 0
-'''
-	x1 = hori_center + (i - (num_rects//2))*(rect_spacing+rect_width)
+	def makeIndexMap(self):
+		"""
+		Create a matrix that maps indexes in the diagonal (angled) matrix to
+		positions in the square (2d) matrix
+		:return:
+		"""
+		n = self.numRects
+		halfList = [[(j,n-1-i+j) for j in range(i+1)] for i in range(n)]
+		fullList = halfList + [[(j[1],j[0]) for j in i] for i in halfList[n-2::-1]]
+		return fullList
 
-	x2 = x1+rect_width
-	y1 = vert_center - rect_height // 2
-	y2 = y1 + rect_height
-	rects.append(canvas.create_rectangle(x1,y1,x2,y2,fill="#FFFFFF",outline=""))
-	'''
-rects = [None for _ in range(num_rects)]
+	def makeLocationMap(self):
+		"""
+		Create a square (2d) matrix of xy coordinates based on the diagonal mapping
+		:return:
+		"""
+		locationMap = [[(0,0) for i in range(self.numRects)] for j in range(self.numRects)]
+		startTop = 0.5*(self.height-self.numRects*self.angle*self.rectWidth)
+		startLeft = (self.width/2)-(self.numRects/2)*self.rectWidth
+		for row in enumerate(self.makeIndexMap()):
+			for col in row[1]:
+				locationMap[col[0]][col[1]] = \
+					(startLeft+(col[0]+col[1])*self.rectWidth/2,
+					startTop+(row[0]+1)*0.5*self.angle*self.rectWidth)
+		return locationMap
 
-def scale_rects(rects,heights):
-	return
-	for i in range(len(rects)):
-		#x1,y1,x2,y2 = canvas.coords(rect)
-		x1 = hori_center + (i - (num_rects//2))*(rect_spacing+rect_width)
 
-		x2 = x1+rect_width
-		y1 = vert_center - heights[i] // 2
-		y2 = y1 + heights[i]
 
-		canvas.coords(rects[i], x1,y1,x2,y2)
+	def start(self):
+		self.running = True
+		while self.running:
+			for event in pygame.event.get():
+				self.handleEvent(event)
 
-min_height = 100
-max_height = canvas_height-100
+			self.onFlip()
 
-rectPos = 0
-direction = 1
-wavelength = 10
-init_step = (max_height-min_height)//wavelength
-step = 10
-max_height = min_height + init_step*wavelength
-directions = [step for i in range(num_rects)]
-rect_sizes = [None for i in range(len(rects))]
-init_dir = init_step
-init_size = min_height
+			pygame.display.flip()
 
-start_dir = -step
+	def handleEvent(self, event):
+		if event.type == pygame.QUIT:
+			self.running = False
 
-for i in range(num_rects//2+1):
-	
-	if (init_size <= min_height):
-		init_size = min_height
-		init_dir = init_step
-		start_dir = -step
-	elif (init_size >= max_height):
-		init_size = max_height
-		init_dir = -init_step
-		start_dir = step
-	rect_sizes[num_rects//2+i] = init_size
-	rect_sizes[num_rects//2-i] = init_size
-	directions[num_rects//2+i] = start_dir
-	directions[num_rects//2-i] = start_dir
-	init_size += init_dir
+	def onFlip(self):
+		fps = 1000
+		while(fps > 40):
+			now = time.time()
 
-def frame_step():
-	global rectPos, direction, target_fps
-	global rects, rect_sizes, directions
-	global canvas_width
-	global min_height, max_height
-	for i in range(num_rects):
-		if rect_sizes[i] >= max_height:
-			rect_sizes[i] = 2*max_height - rect_sizes[i]
-			directions[i] = -step
-		elif rect_sizes[i] <= min_height:
-			rect_sizes[i] = 2*min_height - rect_sizes[i]
-			directions[i] = step
-	for i in range(num_rects):
-		rect_sizes[i] += directions[i]
-	
-		
-	scale_rects(rects, rect_sizes)
-	canvas.after(1000//target_fps, frame_step)
+			fps = 1/max(now - self.old_time,0.0001)
+		self.old_time = time.time()
+		#print("fps:", fps)
+		self.screen.fill((255, 255, 255))
 
-frame_step()
+		self.drawRects()
+		self.updateRects()
+		#self.drawSquares()
+		#self.set2DScaleVals()
 
-input()
+	def drawRects(self):
+		for index in self.drawOrder:
+			self.Rects[index[0]][index[1]].draw((self.screen))
+
+	def updateRects(self):
+		for index in self.drawOrder:
+			self.Rects[index[0]][index[1]].step()
+
+
+	def _drawRects(self, numRects):
+		offset = 0
+		rects = []
+		if numRects % 2 != 0:
+			# draw rect in center
+			centerRect = Rect(self.width / 2 - self.rectWidth/2,
+				(self.height - self.rectMaxHeight)/ 2,
+				self.rectWidth,
+				self.rectMaxHeight)
+			rects.append(centerRect)
+			numRects -= 1
+			offset += self.rectWidth
+		else:
+			offset += self.rectWidth /2
+
+		for i in range(numRects//2):
+			leftRect = Rect(self.width/2-offset-self.rectWidth/2,
+				(self.height - self.rectMaxHeight)/2,
+				self.rectWidth,
+				self.rectMaxHeight)
+			rightRect = Rect(self.width//2+offset-self.rectWidth/2,
+				(self.height - self.rectMaxHeight)/2,
+				self.rectWidth,
+				self.rectMaxHeight)
+			rects.append(leftRect)
+			rects.append(rightRect)
+			offset += self.rectWidth
+		rects = sorted(rects, key=lambda r: r.left)
+
+
+
+		for rect in enumerate(rects):
+			heightScaler = self.get1DScaleVal(rects[0], self.numRects)
+			height = self.rectMinHeight + \
+				(heightScaler*(self.rectMaxHeight-self.rectMinHeight))
+			rect[1].top = rect[1].top + (self.rectMaxHeight /2) -height / 2
+			rect[1].height = height
+			rect[1].left -= self.rectWidth *0.5*rect[0]
+			rect[1].top += self.angle*self.rectWidth*rect[0]*0.5
+
+
+			#rect[1].top += int(self.rectMaxHeight * -xVal + self.rectMinHeight)
+			#rect[1].height = self.rectMaxHeight * xVal + self.rectMinHeight - rect[1].top
+			#pygame.draw.rect(self.screen,
+			#	tuple(random.randrange(256) for i in range(3)), rect[1])
+			self.drawRect(rect[1].top, rect[1].left,rect[1].width, rect[1].height)
+			#pygame.draw.rect(self.screen, (0,0,255), rect[1])
+		self.x -= 0.0013*1.5
+
+	def _get1DScaleVal(self,pos, numRects):
+		scaler = math.pi / (numRects*2 - 1)
+		v = abs(pos - ((numRects-1)/2))*2
+		xv = v *2*scaler-math.pi+math.pi*self.x
+		hS = (math.cos(xv)/1.75 +1)/2
+		return hS
+
+	def get1DScaleVale(self,pos,numRects):
+		# Return a scale along a circular path
+		#return math.sqrt(1-abs(1-pos/((numRects-1)/2))**2)
+		# Return a scale along a sine wave path
+		return 0.5 -0.5*math.cos(pos/((numRects-1)/(2*math.pi)))
+
+
+	def _set2DScaleVals(self):
+		self.x -= 0.0013*20
+		self.rects = [[0 for i in range(self.numRects)] for j in range(self.numRects)]
+		for col in range(self.numRects):
+			for row in range(self.numRects):
+				self.rects[row][col] += self.get1DScaleVal(col,self.numRects)/2
+				self.rects[col][row] += self.get1DScaleVal(col,self.numRects)/2
+
+	def scaleToRectHeight(self,x):
+		return self.rectMinHeight + x*(self.rectMaxHeight-self.rectMinHeight)
+
+	def drawSquares(self):
+		for r in self.makeIndexMap():
+			for c in r:
+				row,col = c
+				pos = self.locationMap[row][col]
+				rectHeight = self.scaleToRectHeight(self.rects[row][col])
+				top = pos[1]-rectHeight/2
+
+				self.drawRect(top,pos[0],self.rectWidth,rectHeight)
+
+
+
+
+class Rect:
+	def __init__(self, pos, width, colors, minHeight, maxHeight,angle,ossPoint=0.0):
+		self.pos = pos
+		self.colors = colors
+		self.minHeight = minHeight
+		self.maxHeight = maxHeight
+		self.width = width
+		self.ossPoint = ossPoint
+		self.ossRate = 0.0125/1.5
+		self.angle = angle
+
+
+	def getHeight(self):
+		return self.minHeight + self.ossPoint*(self.maxHeight-self.minHeight)
+
+	def getAccelerationMultiplier(self):
+		mode = 2
+		x = self.getHeight()
+		m = self.minHeight
+		M = self.maxHeight
+		scaleMax = 4
+		if mode == 0:
+			# compute the multiplier as a sine wave
+			return (scaleMax+1)/2-math.cos((x-m)/((M-m)/(2*math.pi)))*((scaleMax-1)/2)
+		elif mode == 1:
+			# compute the multiplier as a semicircle
+			return math.sqrt((1-abs(1-((x-m)/((M-m)/2)))**2))+1
+		elif mode == 2:
+			# compute the multiplier as a triangle
+			return (scaleMax-1)*math.sqrt(1-((abs(((M-m)/2)-(x-m)))/((M-m)/2))**2)+1
+		else:
+			return None
+
+	def step(self):
+		self.ossPoint += self.ossRate*self.getAccelerationMultiplier()
+		if(self.ossPoint > 1):
+			self.ossPoint = 1.0
+			self.ossRate *= -1
+		elif(self.ossPoint < 0):
+			self.ossPoint = 0.0
+			self.ossRate *= -1
+
+
+
+	def draw(self, canvas):
+		"""
+		Add a tilted rectangle to the canvas at the specified coordinates
+		:param top: y-value of top left point
+		:param left: x-value of top left point
+		:param width: width of rectangle
+		:param height: height of rectangle (length of side straight edge)
+		:return: none
+		"""
+
+		left = self.pos[0]
+		width = self.width
+		height = self.getHeight()
+		top = self.pos[1] - height/2
+
+		# outline perimeter
+		x = 0.5 * self.angle * width
+		A = (left, top)
+		C = (left, top + height)
+		E = (left + 0.5 * width, top + height + x)
+		D = (left + width, C[1])
+		B = (left + width, top)
+		F = (left + 0.5 * width, top + x)
+		G = (left + 0.5 * width, top - x)
+
+		# define points of 3 shapes
+		left_p = (A, C, E, F)
+		right_p = (E, D, B, F)
+		top_p = (B, G, A, F)
+
+		# draw shapes
+		for i in range(3):
+			pygame.draw.polygon(canvas, self.colors[i], [left_p, right_p, top_p][i])
+			pygame.draw.aalines(canvas, self.colors[i], True, [left_p, right_p, top_p][i])
+
+
+if __name__ == "__main__":
+	app = App()
+	app.start()
