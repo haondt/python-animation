@@ -1,4 +1,5 @@
 from tkinter import *
+from PIL import Image, ImageDraw
 
 window = Tk()
 
@@ -79,7 +80,7 @@ for i in range(num_rects//2+1):
 	directions[num_rects//2-i] = start_dir
 	init_size += init_dir
 
-def frame_step():
+def auto_frame_step():
 	global rectPos, direction, target_fps
 	global rects, rect_sizes, directions
 	global canvas_width
@@ -98,6 +99,41 @@ def frame_step():
 	scale_rects(rects, rect_sizes)
 	canvas.after(1000//target_fps, frame_step)
 
-frame_step()
+def frame_step():
+	global rectPos, direction, target_fps
+	global rects, rect_sizes, directions
+	global canvas_width
+	global min_height, max_height
+	for i in range(num_rects):
+		if rect_sizes[i] >= max_height:
+			rect_sizes[i] = 2*max_height - rect_sizes[i]
+			directions[i] = -step
+		elif rect_sizes[i] <= min_height:
+			rect_sizes[i] = 2*min_height - rect_sizes[i]
+			directions[i] = step
+	for i in range(num_rects):
+		rect_sizes[i] += directions[i]
+	
+		
+	scale_rects(rects, rect_sizes)
 
-input()
+def frame_save():
+	global rectPos, direction, target_fps
+	global rects, rect_sizes, directions
+	global canvas_width
+	global min_height, max_height
+	canvas.postscript(file='test.eps')
+	img = Image.open('test.eps')
+	img.save('test.png', 'png')
+
+
+
+	
+
+#auto_frame_step()
+#input()
+
+while True:
+	frame_step()
+	frame_save()
+	input()

@@ -10,6 +10,11 @@ class App:
 		self.running = False
 		self.colors = ((157,205,155),(0,0,48),(99,154,170))
 		self.angle = 0.5
+		self.clock = pygame.time.Clock()
+		self.saveframes = False # set to true to save one round of frames to /tmp
+		self.framecount = 0
+		self.firstRectHeight = None
+
 
 		self.rectColor = (0, 0, 255)
 		self.numRects = 15
@@ -80,17 +85,21 @@ class App:
 			self.running = False
 
 	def onFlip(self):
-		fps = 1000
-		while(fps > 40):
-			now = time.time()
-
-			fps = 1/max(now - self.old_time,0.0001)
-		self.old_time = time.time()
-		#print("fps:", fps)
+		self.clock.tick(60)
 		self.screen.fill((255, 255, 255))
 
 		self.drawRects()
 		self.updateRects()
+		if self.saveframes:
+			frh = round(self.Rects[0][0].getHeight())
+			if self.firstRectHeight == None:
+				self.firstRectHeight = frh
+			elif self.firstRectHeight == frh:
+				self.saveframes = False
+			else:
+				pygame.image.save(self.screen, "tmp/frame_{}.png".format(self.framecount))
+				self.framecount += 1
+
 		#self.drawSquares()
 		#self.set2DScaleVals()
 
