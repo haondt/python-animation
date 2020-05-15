@@ -6,4 +6,3 @@ Animations/generative art made with python
 `ripples-3d.py`
 
 ![](ripples.gif)
-![](test2.gif)
